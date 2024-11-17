@@ -1,0 +1,24 @@
+---
+title: "Modele lineaire"
+output: html_document
+date: "2024-11-17"
+---
+
+## Présentation du jeu de données
+
+Nous étudierons un jeu de données provenant de ... . C'est un tableau Excel qui recense un certain nombre de données météorologiques (température, insolation, précipitations...), de 34 villes françaises en 2023. En voici les premières lignes :
+
+```{r echo=FALSE}
+data_set <- read.table(file = "pluie_france_2023.csv", sep=";", fill = T, fileEncoding = "Latin1")
+head(data_set)
+```
+
+## Problématique, enjeux et objectif
+
+Déterminer le risque qu'un sinistre se produise en ayant à dispositions un jeu de données est au coeur de l'assurance non vie. Dans le contexte de notre base de données, étudier l'ampleur des précipitations a un intérêt pour fixer le prix d'un contrat d'assurance habitation par exemple. Pour mener ces études à bien, les professionnels de l'assurance non vie utilisent un certain nombre de méthodes statistiques dont figure parmi les plus importantes le modèle linéaire. Notre objectif sera donc de construire un modèle linéaire afin de prédire le niveau des précipitations.
+
+Voici les variables que nous utiliserons :
+
+-   La variable d'intérêt quantitative : les précipitations. C'est ce que nous chercherons à expliquer.
+
+-   Les variables explicatives : la température, le mois de l'année, la région, la température, l'insolation annuelle. Ces variables nous permettront d'expliquer le niveau des précipitations.
