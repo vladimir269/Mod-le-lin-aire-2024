@@ -9,7 +9,7 @@ date: "2024-11-17"
 Nous étudierons un jeu de données provenant de ... . C'est un tableau Excel qui recense un certain nombre de données météorologiques (température, insolation, précipitations...), de 34 villes françaises en 2023. En voici les premières lignes :
 
 ```{r echo=FALSE}
-data_set <- read.table(file = "pluie_france_2023.csv", sep=";", fill = T, fileEncoding = "Latin1")
+data_set <- read.table(file = "pluie_france_2023.csv", header = T, sep=";", fill = T, fileEncoding = "Latin1")
 head(data_set)
 ```
 
@@ -22,3 +22,49 @@ Voici les variables que nous utiliserons :
 -   La variable d'intérêt quantitative : les précipitations. C'est ce que nous chercherons à expliquer.
 
 -   Les variables explicatives : la température, le mois de l'année, la région, la température, l'insolation annuelle. Ces variables nous permettront d'expliquer le niveau des précipitations.
+
+## Estimation des moindres carrés (p.11)
+
+On va estimer notre variables d'intérêt Y grâce aux variables explicatives que nous avons choisi.
+
+
+```{r}
+subset <- data_set[1:(nrow(data_set) - 5),] #On enlève 5 lignes au tableau qui servirons à la vérification
+
+Y <- subset$Précipitations.annuelles
+
+
+```
+
+La matrice X des variables explicatives 
+```{r}
+X <- as.matrix(subset[, c("Nombre.annuel.de.jours.de.pluie", "Température.moyenne.annuelle", "Insolation.annuelle")])
+X <- cbind(1, X)
+
+cat("Matrice X\n")
+X
+```
+
+Le vecteur des estimateurs beta_i
+```{r}
+beta_n <- solve(t(X)%*%X)%*%(t(X)%*%Y) #solve pour calculer l'inverse. beta_n est le vecteur de l'estimateur de beta_0, ..., beta_K p.21
+rownames(beta_n) <- c("beta_0", "beta_1", "beta_2", "beta_3")
+
+beta_n
+```
+
+
+Pour les epsilon i, (p.13), on prendra Yi - y chapeau i
+
+```{r}
+Y_estime <- beta_n%*%X
+epsilon <- Y - Y_estime
+
+epsilon
+```
+
+
+
+
+
+
