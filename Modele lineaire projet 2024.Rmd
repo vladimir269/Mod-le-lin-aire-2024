@@ -64,6 +64,22 @@ epsilon
 ```
 
 
+Les résidus sont donnés par :
+$$
+\epsilon = Y - \hat{Y}
+$$
+
+Le vecteur des estimateurs $\beta_n$ est donné par :
+$$
+\beta_n = \begin{bmatrix}
+\beta_0 \\
+\beta_1 \\
+\beta_2 \\
+\beta_3
+\end{bmatrix}
+$$
+
+
 
 
 
