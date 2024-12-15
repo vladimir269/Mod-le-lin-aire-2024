@@ -1,0 +1,52 @@
+---
+title: "Model lin dernier"
+output: html_document
+date: "2024-12-15"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Presentatuion
+
+```{r}
+df <- read.table(file = "london_weather.csv", header = T, sep=",", fill = T, fileEncoding = "Latin1")
+
+df_clean <- df[1:(nrow(df) - 15), ] #On enlève les 15 dernières lignes qu'on réserve pour la prédiction
+
+df_clean$date <- NULL
+df_clean$min_temp <- NULL
+df_clean$max_temp <- NULL
+
+data <- na.omit(df_clean) #Suppression valeurs manquantes
+data_set <- as.data.frame(scale(data)) #On centre et on réduit
+
+
+head(data_set)
+
+```
+
+## Estimation des paramètres
+
+```{r}
+mod1 <- lm(precipitation ~ ., data = data_set)
+mod1
+```
+```{r}
+step(mod1)
+```
+## Prédiction
+
+On va tester le modèle.
+```{r}
+nrow(df_clean)
+```
+
+```{r}
+residus_stu <- rstudent(model = mod1)
+Y_vrai <- df_clean$[(nrow(df_clean) - 14):nrow(df_clean)]
+
+Y_vrai
+```
+
