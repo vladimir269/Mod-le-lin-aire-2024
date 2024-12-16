@@ -1,0 +1,135 @@
+---
+title: "Model lin Londres
+---
+
+---
+"
+output: html_document
+date: "2024-12-15"
+---
+
+## Presentation
+
+```{r}
+df <- read.table(file = "london_weather.csv", header = T, sep=",")
+
+df_clean <- df[1:(nrow(df) - 15), ] #On enlève les 15 dernières lignes qu'on réserve pour la prédiction
+
+data <- df[,-c(1,5,7)]
+#On retire les données inutiles: la date n'est pas nécéssaire puisque reflétée par autres paramètres (sunshine, mean_temp etc), et on garde seulement la température moyenne au lieu des 3 données.
+
+data <- na.omit(df_clean) #Suppression des lignes ayant des valeurs manquantes
+data_set <- as.data.frame(scale(data)) #On centre et on réduit
+
+head(data)
+head(data_set)
+```
+
+## Choix du modèle
+
+```{r}
+mod1 <- lm(precipitation ~ ., data = data_set)
+summary(mod1)
+```
+
+On observe que les données "snow_depth" et "global_radiation" n'ont pas l'air d'expliquer le modèle. On va vérifier cela avec l'AIC.
+
+```{r}
+step(mod1,direction="both")
+```
+
+L'AIC nous dit de supprimer seulement la donnée "snow_depth".
+
+```{r}
+data2 <- data_set[,c(-7)]
+mod2 <-lm(precipitation ~ ., data = data2)
+summary(mod2)
+```
+
+Le modèle linéaire en supprimant "snow_depth" nous dit toujours que "global_radiation" a peu d'impact sur le modèle, cependant l'AIC nous conseil de le garder, ce que l'on va faire.
+
+## Analyse des résidus
+
+```{r}
+library(ggplot2)
+
+residus <- mod2$residuals
+residus_stand <- rstandard(model = mod2)
+residus_stu <- rstudent(model = mod2)
+
+n <- length(data_set$precipitation)
+df.residu <- data.frame(residu = residus)
+plot <- ggplot(data = df.residu) + aes(x=1:n, y = residu) + geom_point()
+plot <- plot + geom_hline(yintercept = 0,  linetype = 2)
+plot <- plot + geom_smooth(method ='loess')
+plot <- plot + xlab('Index') + ylab('Résidus')
+plot
+
+df.residu$residu_stu<- residus_stu
+plot2 <- ggplot(data = df.residu) + aes(x=1:n, y = residu_stu) + geom_point()
+plot2 <- plot2 + geom_hline(yintercept = -2, col = "blue", linetype = 2)
+plot2 <- plot2 + geom_hline(yintercept = 2, col = "blue", linetype = 2)
+plot2 <- plot2 + xlab('Index') + ylab('Résidus studentisés')
+plot2
+
+r <- mod1$rank
+H <- hatvalues(mod2)
+seuil1 <- 2*r/n
+seuil2 <- 3*r/n
+df.H <- data.frame(H = H)
+
+ID_levier <- (1:n)[df.H$H>seuil1]
+df.H$ID <- rep("",n)
+df.H[ID_levier,]$ID <- ID_levier
+df.H$group <- rep("Non levier",n)
+df.H[ID_levier,]$group <- "Levier"
+
+plot3 <- ggplot(data = df.H) + aes(x=1:n, y = H, color=group) + geom_point()
+plot3 <- plot3 + geom_hline(yintercept = seuil1, col = "blue", linetype = 2)
+plot3 <- plot3 + geom_hline(yintercept = seuil2, col = "blue", linetype = 3)
+plot3 <- plot3 + xlab('Index') + ylab('distance de Cook')
+plot3
+```
+Comment compter le nombre de résidus dépassant (voir si on a bien les 5%)
+
+Problèmes: on a beaucoup  de levier dont 4 majeurs et un EXTREMEMENT levier (comment prendre en compte)
+
+```{r}
+quant.t <- qt((1:n)/n,n-r-1)
+df_qq <- data.frame(Obs = sort(df.residu$residu_stu), Theo = quant.t)
+qq.plot <-
+  ggplot(data = df_qq, aes(x = Obs, y = Theo)) + geom_point(shape = 1, size = 2.5)
+qq.plot <-
+  qq.plot + geom_abline(
+    slope = 1,
+    intercept = 0,
+    col = "blue",
+    linetype = 2,
+    size = 0.5
+  )
+qq.plot <- qq.plot + xlab("Quantiles empiriques des résidus") + ylab("Student T(n-r-1)")
+qq.plot <- qq.plot + xlim(-3,4) + ylim(-3,4)
+qq.plot
+```
+
+```{r}
+ks.test(x = df.residu$residu_stu, y = 'pt', df = n-r-1)
+```
+
+D'après le test de Komolgorov-Smirnov les résidus ne sont pas gaussiens, ce qui correspond à ce que l'on voit sur le graphique.
+
+## Prédiction
+
+On va tester le modèle.
+
+```{r}
+nrow(df_clean)
+nrow(data_set)
+```
+
+```{r}
+residus_stu <- rstudent(model = mod1)
+Y_vrai <- df_clean$[(nrow(df_clean) - 14):nrow(df_clean)]
+
+Y_vrai
+```
