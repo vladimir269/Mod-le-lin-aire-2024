@@ -45,22 +45,24 @@ On va tester le modèle.
 
 ```{r}
 
-mod2 <- lm(precipitation ~ cloud_cover + sunshine + global_radiation + mean_temp + pressure, data = data_subset)
-residus_stu <- rstudent(model = mod1)
+mod2 <- lm(precipitation ~ cloud_cover + sunshine + global_radiation + mean_temp + pressure, data = data_subset) #Regression avec les variables choisies par l'AIC
+residus_stu <- rstudent(model = mod2)
 
 Y_vrai <- tail(data_set$precipitation, 100) #Les 100 dernières lignes de la colonne precipitation
 names(mod2$model)
 
-new_data <- data.frame(
+new_data <- c(
   cloud_cover = 0.85308665,
   sunshine = -1.06095787,
   global_radiation = -1.1232780,
   mean_temp = -0.7144958,
   pressure = 1.5164195
 )
+val.pred <- coef(mod2)[1]+coef(mod2)[2]*new_data[1] + coef(mod2)[3]*new_data[2] + coef(mod2)[4]*new_data[3] + coef(mod2)[5]*new_data[4] + coef(mod2)[6]*new_data[5]#7305
 
-
-Y_estime <- predict(mod1, newdata = new_data, interval = "conf", level = 0.9) #7305
-
+Y_vrai[100] - val.pred #Erreur de -0.17 sans les residus
+```
+```{r}
+residus_stu[5007]
 ```
 
