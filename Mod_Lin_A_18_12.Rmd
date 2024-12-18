@@ -1,0 +1,97 @@
+---
+title: "Modele lineaire"
+output: html_document
+date: "2024-11-17"
+---
+
+Nous étudierons un jeu de données provenant de ... . C'est un tableau Excel qui recense un certain nombre de données météorologiques (température, insolation, précipitations...), de 34 villes françaises en 2023. En voici les premières lignes :
+
+```{r}
+df <- read.table(file = "pluie_france_2023.csv", header = T, sep=";", fileEncoding = "Latin1")
+head(df)
+```
+
+On va commencer par retirer les variables que l'on sait corrélés:
+
+-On veut étudier les précipitations annuelles, on retire donc les précipitations mensuelles qui explique entièrement le modèle (colonnes 2 à 13) ainsi que les précipitations sommés de mai à août ainsi que de septembre à octobre (colonnes 33 et 34)
+
+-On retire le nombre de jours de pluie mensuelle pour garder seulement le nombre de jours de pluie annuel (colonnes 15 à 26)
+
+-La Latitude et la Longitude suffise pour décrire la localisation: on retire le nom des villes (colonne 1) ainsi que "géographie" (colonne 35)
+
+```{r}
+df <- df[,-c(1:13,15:26,33:35)]
+
+#On centre et réduits nos données pour faciliter l'analyse et la comparabilités des résultats futurs
+data <- as.data.frame(scale(df))
+
+head(data)
+```
+
+On fait ensuite une vérification manuelle de la corrélation entre les différentes variables afin d'avoir un bon modèle avant d'entamer les estimations des coefficients du modèle.
+
+```{r}
+library(ggplot2)
+library(GGally)
+cor(data)
+ggpairs(data = data)
+```
+
+Plusieurs problèmes ressortent de ce graphique (certes avec beaucoup d'information mais seules les valeurs de corrélations nous intéressent).
+
+-   1er problème: les variables semblent assez peu corrélés avec les précipitations, rendant difficile sa prédiction (on verra par la suite s'il est préférable de supprimer les variables dont les valeurs de corrélations sont les plus faibles)
+
+-   2nd problème: les variables sembles très corrélés entre elles, ce qui complique l'analyse du modèle et peut fausser les résultats. On a donc envie de retirer la majorité des variables, mais on aura alors un modèle beaucoup trop simpliste pour expliquer le phénomène.
+
+    Etant donné la corrélation très proche de 1 de l'insolation annuelle et le nombre annuel de jour de pluie, on va supprimer par la suite un des deux (celui le moins significatif pour le modèle).
+
+```{r}
+mod1 <- lm(Précipitations.annuelles ~ ., data=data)
+summary(mod1)
+```
+
+L'insolation étant moins significative dans le modèle que le nombre de jours de pluie, on supprime cette variable.
+
+```{r}
+data2 <- data[,-c(5)]
+mod2 <-lm(Précipitations.annuelles ~ ., data=data2)
+summary(mod2)
+```
+
+Le modèle linéaire nous indique que deux variables semblent assez peu significative.
+
+Etonnament une qui avait une des plus grandes corrélations avec les précipitations annuelles est non significative tandis qu'une avec une corrélation presque nul donne apparement une bonne quantité d'information sur les précipitations.
+
+On va tester via l'AIC si les deux variables non significatives devraient ou non être supprimés du modèle.
+
+```{r}
+step(mod1,direction="both")
+```
+
+```{r}
+step(mod2,direction="both")
+```
+
+Selon la suppréssion de la variable fortement corrélé ou non l'AIC ne nous dit pas de supprimer les même valeurs
+
+```{r}
+data3 <- data[,-c(3,4)]
+cor(data3)
+ggpairs(data = data3)
+```
+
+```{r}
+data4 <- data2[,-c(3)]
+cor(data4)
+ggpairs(data = data4)
+```
+
+```{r}
+mod3 <- lm(Précipitations.annuelles ~ ., data=data3)
+summary(mod3)
+```
+
+```{r}
+mod4 <- lm(Précipitations.annuelles ~ ., data=data4)
+summary(mod4)
+```
