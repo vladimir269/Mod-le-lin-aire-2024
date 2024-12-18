@@ -1,0 +1,121 @@
+---
+title: "Modele lineaire"
+output: html_document
+date: "2024-11-17"
+---
+
+## Présentation du jeu de données
+
+Nous étudierons un jeu de données provenant de ... . C'est un tableau Excel qui recense un certain nombre de données météorologiques (température, insolation, précipitations...), de 34 villes françaises en 2023. En voici les premières lignes :
+
+```{r echo=FALSE}
+data_set <- read.table(file = "pluie_france_2023.csv", header = T, sep=";", fill = T, fileEncoding = "Latin1")
+data_set$X <- NULL
+data_set$Géographie <- NULL
+
+head(data_set)
+```
+
+## Problématique, enjeux et objectif
+
+Déterminer le risque qu'un sinistre se produise en ayant à dispositions un jeu de données est au coeur de l'assurance non vie. Dans le contexte de notre base de données, étudier l'ampleur des précipitations a un intérêt pour fixer le prix d'un contrat d'assurance habitation par exemple. Pour mener ces études à bien, les professionnels de l'assurance non vie utilisent un certain nombre de méthodes statistiques dont figure parmi les plus importantes le modèle linéaire. Notre objectif sera donc de construire un modèle linéaire afin de prédire le niveau des précipitations.
+
+Voici les variables que nous utiliserons :
+
+-   La variable d'intérêt quantitative : les précipitations. C'est ce que nous chercherons à expliquer.
+
+-   Les variables explicatives : la température, le mois de l'année, la région, la température, l'insolation annuelle. Ces variables nous permettront d'expliquer le niveau des précipitations.
+
+## Estimation des paramètres et des résidus
+
+On va estimer notre variables d'intérêt Y grâce aux variables explicatives que nous avons choisi.
+
+```{r}
+Y <- data_set$Précipitations.annuelles
+library("ggplot2")
+
+```
+
+On centre et on réduit les données.
+
+```{r}
+data_set <- as.data.frame(scale(data_set))
+head(data_set)
+```
+
+On va procéder à l'estimation des paramètres.
+
+```{r}
+reg.simple <- lm(Précipitations.annuelles~., data = data_set)
+reg.simple
+```
+
+On constate que une variable a la mention NA. On peut ne pas la considérer, donc on l'enlève et on refait l'etimation des paramètres :
+
+```{r}
+data_set$Nombre.annuel.de.jours.de.pluie <- NULL
+reg.simple <- lm(Précipitations.annuelles~., data = data_set)
+reg.simple
+```
+
+## Analyse des résidus
+
+On estime également les résidus studentisés qui nous permettent d'affiner le modèle :
+
+```{r}
+residus_stu <- rstudent(model = reg.simple)
+```
+
+On remarque que certaines variables sont très corrélées avec la variable d'intérêt, en particulier les variables des mois de précipitations.
+
+```{r}
+cor(Y, data_set$JANVIERp)
+cor(Y, data_set$AVRILp)
+
+```
+
+On peut savoir s'il y a des valeurs aberrantes avec cette représentation :
+
+```{r}
+n <- length(data_set$Précipitations.annuelles)
+df.residu$residu_stu<- residus_stu
+plot2 <- ggplot(data = df.residu) + aes(x=1:n, y = residu_stu) + geom_point()
+plot2 <- plot2 + geom_hline(yintercept = -2, col = "blue", linetype = 2)
+plot2 <- plot2 + geom_hline(yintercept = 2, col = "blue", linetype = 2)
+plot2 <- plot2 + xlab('Index') + ylab('Résidus studentisés')
+plot2
+```
+
+On peut dire que dans notre base de données, notre variable d'intérêt contient des valeurs aberrantes. En effet, dans le cas des résidus studentisés, les valeurs se trouvent toujours dans $[-2,2]$ dans 95% des cas avec 5% proches des limites. Or ici, quelques valeurs se trouvent loin des limites et en plus, une très loin (environ 170).
+
+## Etude du point levier
+
+```{r}
+H <- hatvalues(reg.simple)
+
+p <- reg.simple$rank
+seuil1 <- 2*p/n
+seuil2 <- 3*p/n
+df.H <- data.frame(H = H)
+ID_levier <- (1:n)[df.H$H>seuil1]
+df.H$ID <- rep("",n)
+df.H[ID_levier,]$ID <- ID_levier
+df.H$group <- rep("Non levier",n)
+df.H[ID_levier,]$group <- "Levier"
+
+plot3 <- ggplot(data = df.H) + aes(x=1:n, y = H, color=group) + geom_point()
+plot3 <- plot3 + geom_hline(yintercept = seuil1, col = "blue", linetype = 2)
+plot3 <- plot3 + geom_hline(yintercept = seuil2, col = "blue", linetype = 3)
+plot3 <- plot3 + geom_text(aes(label=ID),hjust=0, vjust=0)
+plot3 <- plot3 + xlab('Index') + ylab('hii')
+plot3
+```
+
+## Prédiction
+
+On fait le test : on a les données à Ajaccio en 2024. Les précipitations annuelles : 474,6 (Y_1) Nombre de jours de pluie (en ne comptant pas décembre car pas encore les relevés): 70 (X_11) Température annuelle : 18 (X_12) Insolation : 2698 (X_13)
+
+```{r}
+
+
+```
