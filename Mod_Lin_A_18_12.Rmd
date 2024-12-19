@@ -4,20 +4,32 @@ output: html_document
 date: "2024-11-17"
 ---
 
-Nous étudierons un jeu de données provenant de ... . C'est un tableau Excel qui recense un certain nombre de données météorologiques (température, insolation, précipitations...), de 34 villes françaises en 2023. En voici les premières lignes :
+## Problématique et présentation des données
+
+Déterminer le risque qu'un sinistre se produisant en ayant à dispositions un jeu de données est au coeur de l'assurance non vie.
+
+Nous étudierons ici le jeu de données "Pluviométrie dans les villes françaises" provenant de <https://husson.github.io/data.html>: c'est un tableau Excel recensant des données météorologiques sur 34 villes françaises en 2023.
+
+Dans le contexte de notre base de données, étudier l'ampleur des précipitations a un intérêt pour par exemple fixer le prix d'un contrat d'assurance habitation.
+
+Notre objectif sera donc de construire un modèle linéaire afin de prédire le niveau des précipitations.
+
+Voici les premières lignes de la base de données :
 
 ```{r}
 df <- read.table(file = "pluie_france_2023.csv", header = T, sep=";", fileEncoding = "Latin1")
 head(df)
 ```
 
+## Choix du modèle
+
 On va commencer par retirer les variables que l'on sait corrélés:
 
--On veut étudier les précipitations annuelles, on retire donc les précipitations mensuelles qui explique entièrement le modèle (colonnes 2 à 13) ainsi que les précipitations sommés de mai à août ainsi que de septembre à octobre (colonnes 33 et 34)
+-   On veut étudier les précipitations annuelles, on retire donc les précipitations mensuelles qui explique entièrement le modèle (colonnes 2 à 13) ainsi que les précipitations sommés de mai à août et de septembre à octobre (colonnes 33 et 34)
 
--On retire le nombre de jours de pluie mensuelle pour garder seulement le nombre de jours de pluie annuel (colonnes 15 à 26)
+-   On retire le nombre de jours de pluie mensuelle pour garder seulement le nombre de jours de pluie annuel (colonnes 15 à 26)
 
--La Latitude et la Longitude suffise pour décrire la localisation: on retire le nom des villes (colonne 1) ainsi que "géographie" (colonne 35)
+-   La Latitude et la Longitude suffise pour décrire la localisation: on retire le nom des villes (colonne 1) ainsi que "géographie" (colonne 35)
 
 ```{r}
 df <- df[,-c(1:13,15:26,33:35)]
@@ -28,7 +40,7 @@ data <- as.data.frame(scale(df))
 head(data)
 ```
 
-On fait ensuite une vérification manuelle de la corrélation entre les différentes variables afin d'avoir un bon modèle avant d'entamer les estimations des coefficients du modèle.
+On fait ensuite une vérification manuelle de la corrélation entre les différentes variables afin d'avoir un bon modèle avant d'entamer le choix de modèle.
 
 ```{r}
 library(ggplot2)
@@ -37,15 +49,37 @@ cor(data)
 ggpairs(data = data)
 ```
 
-Plusieurs problèmes ressortent de ce graphique (certes avec beaucoup d'information mais seules les valeurs de corrélations nous intéressent).
+Plusieurs problèmes ressortent de ce graphique (dont seules les valeurs de corrélations nous intéressent).
 
 -   1er problème: les variables semblent assez peu corrélés avec les précipitations, rendant difficile sa prédiction (on verra par la suite s'il est préférable de supprimer les variables dont les valeurs de corrélations sont les plus faibles)
 
--   2nd problème: les variables sembles très corrélés entre elles, ce qui complique l'analyse du modèle et peut fausser les résultats. On a donc envie de retirer la majorité des variables, mais on aura alors un modèle beaucoup trop simpliste pour expliquer le phénomène.
+-   2nd problème: les variables sembles très corrélés entre elles, ce qui complique l'analyse du modèle et peut fausser les résultats. On a donc envie de retirer la majorité des variables, mais on aura alors un modèle beaucoup trop simpliste pour expliquer le phénomène
 
-    Etant donné la corrélation très proche de 1 de l'insolation annuelle et le nombre annuel de jour de pluie, on va supprimer par la suite un des deux (celui le moins significatif pour le modèle).
+Plus précisément, on observe que la Latitude et la Longitude sont fortement corrélés à toute les variables (sauf elles-mêmes et les Précipitations annuelles)
+
+### Choix des modèles
+
+Suite à l'observation des corrélations, on va poser 3 modèles différents (que l'on ajustera par la suite):
+
+-   1er modèle: On supprime toutes les variables fortements corrélés (\*\*\* sur le graph). On se retrouve alors avec uniquement la Latitude et la Longitude
+
+-   2e modèle: Pour éviter de supprimer presque toutes les variables on va supprimer seulement celle dont la valeur absolue de corrélation est au dessus de 0.8 : on choisira laquelle des deux données supprimer selon l'AIC.
+
+-   3e modèle: On ne supprime rien
 
 ```{r}
+mod <- lm(Précipitations.annuelles ~ ., data=data)
+step(mod,direction="both")
+```
+
+```{r}
+
+#On se retrouve alors avec 3 nouveaux data frame:
+
+data1 <- data[,c(1,6,7)]
+
+#data2 <- data[,-c(....)]
+
 mod1 <- lm(Précipitations.annuelles ~ ., data=data)
 summary(mod1)
 ```
