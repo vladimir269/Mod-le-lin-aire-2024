@@ -1,0 +1,168 @@
+---
+title: "Modele lineaire"
+output: html_document
+date: "2024-11-17"
+---
+
+# Problématique et présentation des données
+
+Déterminer le risque qu'un sinistre se produisant en ayant à dispositions un jeu de données est au coeur de l'assurance non vie.
+
+Nous étudierons ici le jeu de données "Pluviométrie dans les villes françaises" provenant de <https://husson.github.io/data.html>: c'est un tableau Excel recensant des données météorologiques sur 34 villes françaises en 2023.
+
+Dans le contexte de notre base de données, étudier l'ampleur des précipitations a un intérêt pour par exemple fixer le prix d'un contrat d'assurance habitation.
+
+Notre objectif sera donc de construire un modèle linéaire afin de prédire le niveau des précipitations.
+
+Voici les premières lignes de la base de données :
+
+```{r}
+df <- read.table(file = "pluie_france_2023.csv", header = T, sep=";", fileEncoding = "Latin1")
+
+data_train <- df[1:(nrow(df) - 3), ] #On réserve 3 lignes à la prédiction
+data_test <- df[(nrow(df) - 2):nrow(df), ] #Les 3 dernieres lignes pour le test
+
+data_test
+```
+
+# Premières analyses
+
+On va commencer par retirer les variables que l'on sait corrélés:
+
+-   On veut étudier les précipitations annuelles, on retire donc les précipitations mensuelles qui expliquent entièrement le modèle (colonnes 2 à 13) ainsi que les précipitations sommées de mai à août et de septembre à octobre (colonnes 33 et 34)
+
+-   On retire le nombre de jours de pluie mensuels pour garder seulement le nombre de jours de pluie annuels (colonnes 15 à 26)
+
+-   La Latitude et la Longitude suffisent pour décrire la localisation: on retire le nom des villes (colonne 1) ainsi que "géographie" (colonne 35)
+
+```{r}
+df <- df[,-c(1:13,15:26,33:35)]
+
+#On centre et réduits nos données pour faciliter l'analyse et la comparabilités des résultats futurs
+data <- as.data.frame(scale(df))
+
+head(data)
+```
+
+On fait ensuite une vérification manuelle de la corrélation entre les différentes variables afin d'avoir un bon modèle avant d'entamer le choix de modèle.
+
+```{r}
+library(ggplot2)
+library(GGally)
+cor(data)
+ggpairs(data = data, progress = FALSE)
+```
+
+Plusieurs problèmes ressortent de ce graphique (dont seules les valeurs de corrélations nous intéressent).
+
+-   1er problème: les variables semblent assez peu corrélés avec les précipitations, rendant difficile sa prédiction (on verra par la suite s'il est préférable de supprimer les variables dont les valeurs de corrélations sont les plus faibles)
+
+-   2nd problème: les variables sembles très corrélés entre elles, ce qui complique l'analyse du modèle et peut fausser les résultats. On a donc envie de retirer la majorité des variables, mais on aura alors un modèle beaucoup trop simpliste pour expliquer le phénomène
+
+Plus précisément, on observe que la Latitude et la Longitude sont fortement corrélés à toute les variables (sauf elles-mêmes et les Précipitations annuelles)
+
+# Choix des modèles
+
+Suite à l'observation des corrélations, afin de déterminer le meilleur modèle, on va poser 3 modèles différents que l'on ajustera par la suite:
+
+-   1er modèle: On supprime toutes les variables fortements corrélés (\*\*\* sur le graph). On se retrouve alors avec uniquement la Latitude et la Longitude
+
+-   2e modèle: Pour éviter de supprimer presque toutes les variables on va supprimer seulement celles dont la valeur absolue de corrélation est au dessus de 0.8 : on choisira laquelle des deux données supprimer selon l'AIC.
+
+-   3e modèle: On ne supprime rien
+
+## Modèle 2
+
+On fait la régression linéaire. On renomme les variables pour plus de lisibilité dans les corrélations.
+
+```{r}
+names(data) <- c('Précipitations.annuelles', 'Nb.an.jr.pl', 't.moy.an', 'am.an.moy.temp', 'Insolation.annuelle','Latitude', 'Longitude')
+mod <- lm(Précipitations.annuelles ~ ., data = data)
+step(mod, direction="both")
+
+```
+
+On étudie les corrélations entre les variables :
+
+```{r}
+cor(data)
+ggpairs(data = data, progress = FALSE)
+```
+
+On remarque que les variables les plus corrélées entre elles (corrélation en valeur absolue supérieure à 0.8) sont les variables
+
+1) "nombre annuel de jours de pluie" et "insolation annuelle"
+
+2) "température moyenne annuelle" avec "insolation annuelle et "lattitude"
+
+3) "insolation annuelle" et "lattitude".
+
+Pour savoir quelles variables enlever quand elles sont corrélées par paires, on enlève celle qui est la moins corrélée avec la variable d'intérêt.
+
+Pour la paire 1), on va enlever "insolation annuelle", car c'est la moins corrélée avec la variable d'intérêt.
+
+Pour la paire 2), on va enlever "insolation annuelle" et "température annuelle moyenne".
+
+Pour la paire 3), on va enlever "insolation annuelle".
+
+On enlève donc la variable "insolation annuelle" et "température annuelle moyenne" :
+
+```{r}
+data$Insolation.annuelle <- NULL
+data$t.moy.an <- NULL
+cor(data)
+ggpairs(data = data,progress = FALSE)
+```
+
+On voit maintenant que toutes les corrélations sont en-dessous de 0.8 en valeur absolue.
+
+On réalise une régression :
+
+```{r}
+mod <- lm(Précipitations.annuelles ~ ., data = data)
+step(mod, direction="both")
+```
+
+L'AIC nous donne comme variables le nombre annuels de jours de pluie, l'amplitude annuelle moyenne des températures, la lattitude et la longitude.
+
+### Etude des résidus
+
+Concentrons-nous maintenant sur les résidus studentisés :
+
+```{r}
+residus_stu <- rstudent(model = mod)
+
+n <- length(data$Précipitations.annuelles)
+df.residu$residu_stu<- residus_stu
+plot2 <- ggplot(data = df.residu) + aes(x=1:n, y = residu_stu) + geom_point()
+plot2 <- plot2 + geom_hline(yintercept = -2, col = "blue", linetype = 2)
+plot2 <- plot2 + geom_hline(yintercept = 2, col = "blue", linetype = 2)
+plot2 <- plot2 + xlab('Index') + ylab('Résidus studentisés')
+plot2
+```
+
+```{r}
+quant.t <- qt((1:n)/n,n-r-1)
+df_qq <- data.frame(Obs = sort(df.residu$residu_stu), Theo = quant.t)
+qq.plot <-
+  ggplot(data = df_qq, aes(x = Obs, y = Theo)) + geom_point(shape = 1, size = 2.5)
+qq.plot <-
+  qq.plot + geom_abline(
+    slope = 1,
+    intercept = 0,
+    col = "blue",
+    linetype = 2,
+    size = 0.5
+  )
+qq.plot <- qq.plot + xlab("Quantiles empiriques des résidus") + ylab("Student T(n-r-1)")
+qq.plot <- qq.plot + xlim(-3,4) + ylim(-3,4)
+qq.plot
+```
+
+```{r}
+ks.test(x = df.residu$residu_stu, y = 'pt', df = n-r-1)
+```
+
+On peut conclure d'après le test de Kolmogorov-Smirnov et les quantiles empiriques des résidus studentisés que les résidus suivent une loi $\mathcal N(0,1)$ .
+
+### Prédiction du modèle
