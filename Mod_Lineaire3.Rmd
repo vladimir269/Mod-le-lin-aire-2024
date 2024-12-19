@@ -1,0 +1,63 @@
+---
+title: "Mod_Lin3"
+output: html_document
+date: "2024-12-19"
+---
+
+```{r}
+df <- read.table(file = "pluie_france_2023.csv", header = T, sep=";", fileEncoding = "Latin1")
+df <- df[,-c(1:13,15:26,33:35)]
+colnames(df)[which(colnames(df) == "Précipitations.annuelles")] <- "Précipitations_annuelles"
+
+#On centre et réduits nos données pour faciliter l'analyse et la comparabilités des résultats futurs
+data <- as.data.frame(scale(df))
+head(data)
+```
+
+```{r}
+# Chargement des bibliothèques nécessaires
+library(MASS)
+
+# Ajustement du modèle linéaire
+model3 <- lm(Précipitations_annuelles ~ ., data = data)
+summary(model3)
+```
+
+```{r}
+# Analyse des résidus
+hist(residuals(model3), main = "Histogramme des résidus", xlab = "Résidus")
+```
+
+La distribution des résidus semble etre proche de la normale. Cela signifie que l'hypothèse de normalité des résidus est respectée.
+
+```{r}
+# Assure-toi que qqnorm() génère bien un graphique avant d'ajouter la ligne
+qqnorm(residuals(model3), main = "QQ-plot des résidus")
+qqline(residuals(model3), col = "blue")
+```
+
+```{r}
+plot(fitted(model3), residuals(model3), 
+     main = "Résidus vs Valeurs ajustées", 
+     xlab = "Valeurs ajustées", ylab = "Résidus")
+abline(h = 0, col = "orange")
+```
+
+```{r}
+# Prédictions sur les données utilisées
+predictions <- predict(model3, newdata = data)
+# Ajouter les prédictions et résidus aux données initiales pour comparaison
+data$Predicted_Precipitations <- predictions
+data$Residuals <- residuals(model3)
+# Comparaison graphique entre précipitations réelles et prédites
+plot(data$Précipitations_annuelles, data$Predicted_Precipitations,
+     xlab = "Précipitations réelles",
+     ylab = "Précipitations prédites",
+     main = "Comparaison des précipitations réelles et prédites")
+abline(0, 1, col = "red", lwd = 2)
+```
+
+```{r}
+AIC(model3)
+BIC(model3)
+```
