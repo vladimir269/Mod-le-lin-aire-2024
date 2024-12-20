@@ -293,13 +293,13 @@ On fait la prédiction "à la main" :
 ```{r}
 data_test1 <- as.data.frame(scale(dt1)) #Le data_test est centré réduit
 
-predit1 <- coef(mod)[1] - 1.1406469*coef(mod)[2] - 0.05123155*coef(mod)[3] - 1.1053143*coef(mod)[4] - 0.2619903*coef(mod)[5] #On fait la prédiction sur la première ligne du data_test
+predit1 <- coef(mod2)[1] - 1.1406469*coef(mod2)[2] - 0.05123155*coef(mod2)[3] - 1.1053143*coef(mod2)[4] - 0.2619903*coef(mod2)[5] #On fait la prédiction sur la première ligne du data_test
 erreur1 <- -0.8403231 - predit1
 
-predit2 <- coef(mod)[1] + 0.4147807*coef(mod)[2] - 0.97339949*coef(mod)[3] + 0.8419845*coef(mod)[4] - 0.8429252*coef(mod)[5]
+predit2 <- coef(mod2)[1] + 0.4147807*coef(mod2)[2] - 0.97339949*coef(mod2)[3] + 0.8419845*coef(mod2)[4] - 0.8429252*coef(mod2)[5]
 erreur2 <- -0.2656904 - predit2
 
-predit3 <- coef(mod)[1] + 0.7258662*coef(mod)[2] + 1.02463104*coef(mod)[3] + 0.2633298*coef(mod)[4] + 1.1049155*coef(mod)[5]
+predit3 <- coef(mod2)[1] + 0.7258662*coef(mod2)[2] + 1.02463104*coef(mod2)[3] + 0.2633298*coef(mod2)[4] + 1.1049155*coef(mod2)[5]
 erreur3 <- 1.1060135 - predit3
 
 print(paste("Le pourcentage d'erreur pour la première ligne est", abs(erreur1/-0.8403231)*100, "%"))
@@ -421,4 +421,19 @@ On va maintenant tester le modèle etc...
 
 #### Prédiction du modèle
 
-...............
+```{r}
+
+data_test1
+predit1 <- coef(mod)[1] - 1.1406469*coef(mod)[2] - 0.05123155*coef(mod)[3] - 1.1053143*coef(mod)[4] - 0.2619903*coef(mod)[5] #On fait la prédiction sur la première ligne du data_test
+erreur1 <- -0.8403231 - predit1
+
+predit2 <- coef(mod)[1] + 0.4147807*coef(mod)[2] - 0.97339949*coef(mod)[3] + 0.8419845*coef(mod)[4] - 0.8429252*coef(mod)[5]
+erreur2 <- -0.2656904 - predit2
+
+predit3 <- coef(mod)[1] + 0.7258662*coef(mod)[2] + 1.02463104*coef(mod)[3] + 0.2633298*coef(mod)[4] + 1.1049155*coef(mod)[5]
+erreur3 <- 1.1060135 - predit3
+
+print(paste("Le pourcentage d'erreur pour la première ligne est", abs(erreur1/-0.8403231)*100, "%"))
+print(paste("Le pourcentage d'erreur pour la première ligne est", abs(erreur2/-0.2656904)*100, "%"))
+print(paste("Le pourcentage d'erreur pour la première ligne est", abs(erreur3/1.1060135)*100, "%"))
+```
