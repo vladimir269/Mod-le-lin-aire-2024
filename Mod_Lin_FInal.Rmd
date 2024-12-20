@@ -1,0 +1,384 @@
+---
+title: "Modele lineaire"
+output:
+  pdf_document: default
+  html_document: default
+date: "2024-11-17"
+---
+
+## Problématique et présentation des données
+
+Déterminer le risque qu'un sinistre se produisant en ayant à dispositions un jeu de données est au coeur de l'assurance non vie.
+
+Nous étudierons ici le jeu de données "Pluviométrie dans les villes françaises" provenant de <https://husson.github.io/data.html>: c'est un tableau Excel recensant des données météorologiques sur 34 villes françaises en 2023.
+
+Dans le contexte de notre base de données, étudier l'ampleur des précipitations a un intérêt pour par exemple fixer le prix d'un contrat d'assurance habitation.
+
+Notre objectif sera donc de construire un modèle linéaire afin de prédire le niveau des précipitations.
+
+Voici les premières lignes de la base de données :
+
+```{r}
+df <- read.table(file = "pluie_france_2023.csv", header = T, sep=";", fileEncoding = "Latin1")
+head(df)
+```
+
+## Choix du modèle
+
+On va commencer par retirer les variables que l'on sait corrélés:
+
+-   On veut étudier les précipitations annuelles, on retire donc les précipitations mensuelles qui explique entièrement le modèle (colonnes 2 à 13) ainsi que les précipitations sommés de mai à août et de septembre à octobre (colonnes 33 et 34)
+
+-   On retire le nombre de jours de pluie mensuelle pour garder seulement le nombre de jours de pluie annuel (colonnes 15 à 26)
+
+-   La Latitude et la Longitude suffise pour décrire la localisation: on retire le nom des villes (colonne 1) ainsi que "géographie" (colonne 35)
+
+```{r}
+df <- df[,-c(1:13,15:26,33:35)]
+
+#On centre et réduits nos données pour faciliter l'analyse et la comparabilités des résultats futurs
+data <- as.data.frame(scale(df))
+#On renomme les variables pour plus de lisibilité plus tard
+names(data) <- c('Précipitations', 'Nbr.j.p', 'Temp.moy', 'Amplitude.temp', 'Insolation','Latitude', 'Longitude')
+head(data)
+```
+
+On fait ensuite une vérification manuelle de la corrélation entre les différentes variables afin d'avoir un bon modèle avant d'entamer le choix de modèle.
+
+```{r}
+library(ggplot2)
+library(GGally)
+ggpairs(data = data,progress=FALSE)
+```
+
+Plusieurs problèmes ressortent de ce graphique (dont seules les valeurs de corrélations nous intéressent).
+
+-   1er problème: les variables semblent assez peu corrélés avec les précipitations, rendant difficile sa prédiction (on verra par la suite s'il est préférable de supprimer les variables dont les valeurs de corrélations sont les plus faibles)
+
+-   2nd problème: les variables sembles très corrélés entre elles, ce qui complique l'analyse du modèle et peut fausser les résultats. On a donc envie de retirer la majorité des variables, mais on aura alors un modèle beaucoup trop simpliste pour expliquer le phénomène
+
+Suite à l'observation de ces corrélations, on va poser 3 modèles différents (que l'on ajustera par la suite):
+
+-   **1er modèle:** On supprime toutes les variables fortements corrélés (avec \*\*\* sur le graph) une par une jusqu'à n'avoir que de "faibles" corrélations.
+
+-   **2e modèle:** Pour éviter de supprimer presque toutes les variables on va supprimer seulement celles dont la valeur absolue de corrélation est au dessus de 0.8 .
+
+-   **3e modèle:** On ne supprime aucune variable
+
+## Modèle 1
+
+#### Elimination des variables corrélés
+
+On retire une par une les variables les plus corrélés entre elles (ayant une corrélation noté \*\*\*) jusqu'à n'avoir que des corrélations "mineurs".
+
+Pour savoir quelle variable enlever parmis les deux corrélés, on enlève celle qui est la moins corrélé avec la variable d'intérêt "Précipitations".
+
+Les variables fortement corrélés sont :
+
+1)  "Température moyenne" et "Nombre de jours de pluie" -\> on retire "Température moyenne"
+
+2)  "Insolation" et "Nombre de jours de pluie" -\> on retire "Insolation"
+
+3)  "Insolation" et "Température moyenne" -\> les deux variables sont déjà retirés
+
+4)  "Latitude" et "Nombre de jours de pluie" -\> on retire "Latitude"
+
+5)  "Latitude" et "Température moyenne" -\> les deux variables sont déjà retirés
+
+6)  "Latitude" et "Insolation" -\> les deux variables sont déjà retirés
+
+7)  "Longitude" et "Amplitude des températures" -\> on retire "Longitude"
+
+Finalement nous avons retiré quatre variables ("Température moyenne", "Insolation", "Latitude", "Longitude") et notre modèle est constitués de seulement deux variables explicatives "peu" corrélés: "Nombre de jours de pluie" et "Amplitude des températures".
+
+```{r}
+data1 <- data[,-c(3,5,6,7)]
+data1
+```
+
+Ce nombre de variables est très insuffisant pour un modèle aussi complexe, nous allons donc continuer l'analyse de ce modèle en faisant les techniques habituelles mais on sait déja que le résultat sera complètement faux.
+
+#### Choix du modèle 1
+
+On va déterminer la significativité des deux variables pour le modèle via tout d'abord via une méthode Backward-Forward.
+
+```{r}
+mod1 <- lm(Précipitations ~ ., data=data1)
+step(mod1,direction="both")
+```
+
+On se retrouve avec une seule variable et une régréssion linéaire simple comme étant le modèle optimal. Analysons maintenant la significativé de ce modèle avec une régréssion linéaire.
+
+```{r}
+reg.simple <- lm(Précipitations ~ Nbr.j.p, data=data1)
+summary(reg.simple)
+```
+
+La seule variable restante semble peu significative. Le modèle est donc presque inutile puisqu'on se retrouve avec une valeur du $R^2$ de 0.11; c'est à dire seulement 11% du modèle explique les précipitations.
+
+#### Visualisation
+
+Profitons du fait que l'on soit en dimension 1 pour tracer la droite de régréssion:
+
+```{r}
+plot1 <- ggplot(data = data1) + aes(x=Précipitations, y=Nbr.j.p) + geom_point()
+plot1 <- plot1 + geom_abline(slope = reg.simple$coeff[2], intercept = reg.simple$coeff[1], col = 'red')
+plot1 <- plot1 + geom_point( aes(x = reg.simple$model$Nbr.j.p, y = reg.simple$fitted.values), shape = 1, col = "blue", size = 4)
+
+plot1
+```
+
+Nous voyons encore une fois que le modèle extrêmement mauvais: retirer toutes les variables corrélés n'est dans ce cas précis pas la meilleure solution, quitte à ce que les données soit un peu biaisés par ces corrélation.
+
+Nous ne ferons pas d'analyses de résidus pour ce 1er modèle, étant donné sa très faible représentation de la variable souhaité les résidus ne serait même pas vraiment des résidus mais simplement des valeurs.
+
+## Modèle 2
+
+#### Elimination des variables corrélés
+
+On applique la même méthode que précédemment, mais seulement pour les variables dont la corrélation en valeur absolue est supérieure à 0.8 :
+
+1)  "Insolation" et "Nombre de jours de pluie" -\> on retire "Insolation"
+
+2)  "Insolation" et "Température moyenne" -\> "Insolation" à déjà été retiré
+
+3)  "Latitude" et "Température moyenne" -\> on retire "Température moyenne"
+
+4)  "Latitude" et "Insolation -\> "Insolation" a déjà été retiré
+
+Finalement nous avons retiré deux variables ("Insolation" et "Température moyenne", ) et notre modèle est constitués de 4 variables explicatives (plus ou moins corrélés): "Nombre de jours de pluie", "Amplitude des températures", "Latitude" et "Longitude".
+
+```{r}
+data2 <- data[,-c(5,3)]
+data2
+```
+
+#### Choix du modèle 2
+
+On utilise à nouveau une méthode Backward-Forward
+
+```{r}
+mod2 <- lm(Précipitations ~ ., data = data2)
+step(mod2, direction="both")
+```
+
+L'algorithme nous conseil de garder les 4 variables.
+
+Voyons maintenant leur significativité dans le modèle:
+
+```{r}
+summary(mod2)
+```
+
+Nous remarquons que toutes les variables semblent contenir au moins un peu d'information, avec "Nombre de jours de pluie" et "Latitude" étant très significatifs.
+
+On observe un $R^2$ qui semble correcte, avec une valeur de 59%, soit près et 40% de plus que celui du 1er modèle.
+
+Le modèle semblant plutôt bon, on va faire sur celui-ci une étude des résidus.
+
+Cependant il ne faut pas oublié que ce modèle parait cohérent avec une grande corrélation entre les variables, corrélations dont les effets sur le modèle sont inconnues.
+
+Nous verrons dans les prédictions ce qu'il en est vraiment.
+
+### Etude des résidus
+
+Concentrons-nous sur les résidus studentisés :
+
+```{r}
+residus_stu2 <- rstudent(model = mod2)
+
+n <- length(data2$Précipitations)
+df.residu$residus_stu2<- residus_stu2
+plot2 <- ggplot(data = df.residu) + aes(x=1:n, y = residus_stu2) + geom_point()
+plot2 <- plot2 + geom_hline(yintercept = -2, col = "blue", linetype = 2)
+plot2 <- plot2 + geom_hline(yintercept = 2, col = "blue", linetype = 2)
+plot2 <- plot2 + xlab('Index') + ylab('Résidus studentisés')
+plot2
+```
+
+Analyse: on a ...% en dehors donc... ??
+
+On regarde si certaines anomalies ont un grand impact sur le modèle:
+
+```{r}
+H <- hatvalues(mod2)
+p <- mod2$rank
+seuil1 <- 2*p/n
+seuil2 <- 3*p/n
+df.H <- data.frame(H = H)
+ID_levier <- (1:n)[df.H$H>seuil1]
+df.H$ID <- rep("",n)
+df.H[ID_levier,]$ID <- ID_levier
+df.H$group <- rep("Non levier",n)
+df.H[ID_levier,]$group <- "Levier"
+
+plot3 <- ggplot(data = df.H) + aes(x=1:n, y = H, color=group) + geom_point()
+plot3 <- plot3 + geom_hline(yintercept = seuil1, col = "blue", linetype = 2)
+plot3 <- plot3 + geom_hline(yintercept = seuil2, col = "blue", linetype = 3)
+plot3 <- plot3 + geom_text(aes(label=ID),hjust=0, vjust=0)
+plot3 <- plot3 + xlab('Index') + ylab('Poids des résidus')
+plot3
+```
+
+Nous observons que deux anomalies sont levier, dont une fortement. Nous regarderons donc la distance de Cook pour avoir une idée de cette influence.
+
+```{r}
+cook <- cooks.distance(mod2)
+df.cook <- data.frame(cook = cook)
+s1 <- qf(0.5,p,n-p)
+s2 <- qf(0.1,p,n-p)
+plot4 <- ggplot(data = df.cook) + aes(x=1:n, y = cook) + geom_point()
+plot4 <- plot4 + geom_hline(yintercept = s1, col = "blue", linetype = 2)
+plot4 <- plot4 + geom_hline(yintercept = s2, col = "blue", linetype = 3)
+plot4 <- plot4 + xlab('Index') + ylab('Distance de Cook')
+plot4
+```
+
+Seul le 1er point est préocuppant, cependant il l'est beaucoup.
+
+On le supprime ?? on lui ajoute un poids ??
+
+Observons maintenant la répartition des résidus pour conclure sur leur normalité.
+
+```{r}
+quant.t <- qt((1:n)/n,n-r-1)
+df_qq <- data.frame(Obs = sort(df.residu$residus_stu2), Theo = quant.t)
+qq.plot <- ggplot(data = df_qq, aes(x = Obs, y = Theo)) + geom_point(shape = 1, size = 2.5)
+qq.plot <-
+  qq.plot + geom_abline(
+    slope = 1,
+    intercept = 0,
+    col = "blue",
+    linetype = 2,
+    size = 0.5
+  )
+qq.plot <- qq.plot + xlab("Quantiles empiriques des résidus") + ylab("Student T(n-r-1)")
+qq.plot <- qq.plot + xlim(-3,4) + ylim(-3,4)
+qq.plot
+```
+
+```{r}
+ks.test(x = df.residu$residus_stu2, y = 'pt', df = n-r-1)
+```
+
+On peut conclure d'après le test de Kolmogorov-Smirnov et les quantiles empiriques des résidus studentisés que les résidus suivent une loi gausienne.
+
+On va maintenant tester le modèle etc...
+
+### Prédiction du modèle
+
+....
+
+## Modèle 3
+
+#### Choix du modèle 3
+
+Puisque dans ce modèle on conserve toutes les variables corrélés, on peut directement faire la méthode du Backward-Forward:
+
+```{r}
+mod3 <- lm(Précipitations~.,data=data)
+step(mod3,direction="both")
+```
+
+L'algorithme nous conseil de garder les variables "Nombre de jour de pluie", "Insolation", "Latitude" et "Longitude" et de supprimer "Température moyenne" et "Amplitude des températures"
+
+On a donc a nouveau 4 variables pour notre modèle (qui est similaire au modèle 2 avec l'Insolation à la place de l'Amplitude des températures).
+
+On va appliquer les même méthodes que précedemment.
+
+Regréssion linéaire:
+
+```{r}
+data3 <- data[,-c(3,4)]
+mod4 <- lm(Précipitations~.,data=data3)
+summary(mod4)
+```
+
+Nous remarquons que toutes les variables semblent plutôt significative, avec le meilleur $R^2$ observé jusqu'à maintenant, d'une valeur de 63% (légèrement au dessus du modèle précédent).
+
+On va donc également faire une analyse des résidus sur ce modèle.
+
+Encore une fois nous rappelons que ce modèle parait comme étant le meilleur mais possède également la plus grande corrélation parmis ses variables, nous verrons dans les prédictions ce qu'il en est vraiment.
+
+#### Etude des résidus
+
+Concentrons-nous sur les résidus studentisés :
+
+```{r}
+residus_stu4 <- rstudent(model = mod4)
+
+n <- length(data2$Précipitations)
+df.residu$residus_stu4<- residus_stu4
+plot2 <- ggplot(data = df.residu) + aes(x=1:n, y = residus_stu4) + geom_point()
+plot2 <- plot2 + geom_hline(yintercept = -2, col = "blue", linetype = 2)
+plot2 <- plot2 + geom_hline(yintercept = 2, col = "blue", linetype = 2)
+plot2 <- plot2 + xlab('Index') + ylab('Résidus studentisés')
+plot2
+```
+
+Analyse: on a ...% en dehors donc... ??
+
+On regarde si certaines anomalies ont un grand impact sur le modèle:
+
+```{r}
+H <- hatvalues(mod4)
+p <- mod4$rank
+seuil1 <- 2*p/n
+seuil2 <- 3*p/n
+df.H <- data.frame(H = H)
+ID_levier <- (1:n)[df.H$H>seuil1]
+df.H$ID <- rep("",n)
+df.H[ID_levier,]$ID <- ID_levier
+df.H$group <- rep("Non levier",n)
+df.H[ID_levier,]$group <- "Levier"
+
+plot3 <- ggplot(data = df.H) + aes(x=1:n, y = H, color=group) + geom_point()
+plot3 <- plot3 + geom_hline(yintercept = seuil1, col = "blue", linetype = 2)
+plot3 <- plot3 + geom_hline(yintercept = seuil2, col = "blue", linetype = 3)
+plot3 <- plot3 + geom_text(aes(label=ID),hjust=0, vjust=0)
+plot3 <- plot3 + xlab('Index') + ylab('Poids des résidus')
+plot3
+```
+
+Nous observons que deux anomalies sont levier, mais il n'y en a pas un abberrament haut. Nous regarderons donc la distance de Cook pour avoir une idée de cette influence.
+
+```{r}
+cook <- cooks.distance(mod4)
+df.cook <- data.frame(cook = cook)
+s1 <- qf(0.5,p,n-p)
+s2 <- qf(0.1,p,n-p)
+plot4 <- ggplot(data = df.cook) + aes(x=1:n, y = cook) + geom_point()
+plot4 <- plot4 + geom_hline(yintercept = s1, col = "blue", linetype = 2)
+plot4 <- plot4 + geom_hline(yintercept = s2, col = "blue", linetype = 3)
+plot4 <- plot4 + xlab('Index') + ylab('Distance de Cook')
+plot4
+```
+
+On observe un point problématique, mais beaucoup moins que dans le modèle précédent.
+
+On le supprime ?? on lui ajoute un poids ??
+
+Observons maintenant la répartition des résidus pour conclure sur leur normalité.
+
+```{r}
+quant.t <- qt((1:n)/n,n-r-1)
+df_qq <- data.frame(Obs = sort(df.residu$residus_stu4), Theo = quant.t)
+
+qq.plot <- ggplot(data = df_qq, aes(x = Obs, y = Theo)) + geom_point(shape = 1, size = 2.5)
+qq.plot <- qq.plot + geom_abline(slope = 1,intercept = 0, col = "blue", linetype = 2, size = 0.5)
+qq.plot <- qq.plot + xlab("Quantiles empiriques des résidus") + ylab("Student T(n-r-1)")
+qq.plot <- qq.plot + xlim(-3,4) + ylim(-3,4)
+qq.plot
+```
+
+```{r}
+ks.test(x = df.residu$residus_stu4, y = 'pt', df = n-r-1)
+```
+
+On peut conclure d'après le test de Kolmogorov-Smirnov et les quantiles empiriques des résidus studentisés que les résidus suivent une loi gausienne.
+
+On va maintenant tester le modèle etc...
+
+#### Prédiction du modèle
+
+...............
