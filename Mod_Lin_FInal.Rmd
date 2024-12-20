@@ -192,16 +192,16 @@ Concentrons-nous sur les résidus studentisés :
 ```{r}
 residus_stu2 <- rstudent(mod2)
 
-n <- length(data$Précipitations.annuelles)
+n <- length(data$Précipitations)
 
 H <- hatvalues(mod2)
 
-r <- mod$rank
+r <- mod2$rank
 seuil1 <- 2*r/n
 seuil2 <- 3*r/n
 df.H <- data.frame(H = H)
 
-plot3 <- ggplot(data = df.H) + aes(x=1:n, y = H) + geom_point()
+plot3 <- ggplot(data = df.H)  + geom_point(aes(x=1:n, y = H))
 plot3 <- plot3 + geom_hline(yintercept = seuil1, col = "blue", linetype = 2)
 plot3 <- plot3 + geom_hline(yintercept = seuil2, col = "blue", linetype = 3)
 plot3 <- plot3 + xlab('Index') + ylab('Poids des observations')
@@ -247,37 +247,28 @@ plot4 <- plot4 + xlab('Index') + ylab('Distance de Cook')
 plot4
 ```
 
-Seul le 1er point est préoccupant, cependant il l'est beaucoup.
+Seul le 1er point est préoccupant, cependant il est très éloigné du 2e seuil.
 
 On le supprime ?? on lui ajoute un poids ??
 
 Observons maintenant la répartition des résidus pour conclure sur leur normalité.
 
 ```{r}
-# Recalculez les résidus studentisés
-df.residu$residus_stu2 <- rstudent(mod2)
-
-# Vérifiez la longueur réelle des résidus
-n <- length(df.residu$residus_stu2)  # Nombre d'observations
-r <- mod2$rank                       # Rang du modèle
-
-# Quantiles théoriques
-quant.t <- qt((1:n) / (n + 1), df = n - r - 1)  # Utiliser n+1 pour éviter les valeurs extrêmes
-
-# Data frame pour le QQ plot
-df_qq <- data.frame(Obs = sort(df.residu$residus_stu2), Theo = quant.t)
-
-# QQ plot
-qq.plot <- ggplot(data = df_qq, aes(x = Obs, y = Theo)) +
-  geom_point(shape = 1, size = 2.5) +
-  geom_abline(slope = 1, intercept = 0, col = "blue", linetype = 2, size = 0.5) +
-  xlab("Quantiles empiriques des résidus") +
-  ylab("Student T(n-r-1)") +
-  xlim(-3, 4) +
-  ylim(-3, 4)
-
+quant.t <- qt((1:n)/n,n-r-1)
+df_qq <- data.frame(Obs = sort(df.residu$residu_stu), Theo = quant.t)
+qq.plot <-
+  ggplot(data = df_qq, aes(x = Obs, y = Theo)) + geom_point(shape = 1, size = 2.5)
+qq.plot <-
+  qq.plot + geom_abline(
+    slope = 1,
+    intercept = 0,
+    col = "blue",
+    linetype = 2,
+    size = 0.5
+  )
+qq.plot <- qq.plot + xlab("Quantiles empiriques des résidus") + ylab("Student T(n-r-1)")
+qq.plot <- qq.plot + xlim(-3,4) + ylim(-3,4)
 qq.plot
-
 ```
 
 ```{r}
@@ -423,17 +414,28 @@ On va maintenant tester le modèle etc...
 
 ```{r}
 
-data_test1
-predit1 <- coef(mod)[1] - 1.1406469*coef(mod)[2] - 0.05123155*coef(mod)[3] - 1.1053143*coef(mod)[4] - 0.2619903*coef(mod)[5] #On fait la prédiction sur la première ligne du data_test
+predit1 <- coef(mod4)[1] - 1.1406469*coef(mod4)[2] - 0.05123155*coef(mod4)[3] - 1.1053143*coef(mod4)[4] - 0.2619903*coef(mod4)[5] #On fait la prédiction sur la première ligne du data_test
 erreur1 <- -0.8403231 - predit1
 
-predit2 <- coef(mod)[1] + 0.4147807*coef(mod)[2] - 0.97339949*coef(mod)[3] + 0.8419845*coef(mod)[4] - 0.8429252*coef(mod)[5]
+predit2 <- coef(mod4)[1] + 0.4147807*coef(mod4)[2] - 0.97339949*coef(mod4)[3] + 0.8419845*coef(mod4)[4] - 0.8429252*coef(mod4)[5]
 erreur2 <- -0.2656904 - predit2
 
-predit3 <- coef(mod)[1] + 0.7258662*coef(mod)[2] + 1.02463104*coef(mod)[3] + 0.2633298*coef(mod)[4] + 1.1049155*coef(mod)[5]
+predit3 <- coef(mod4)[1] + 0.7258662*coef(mod4)[2] + 1.02463104*coef(mod4)[3] + 0.2633298*coef(mod4)[4] + 1.1049155*coef(mod4)[5]
 erreur3 <- 1.1060135 - predit3
 
 print(paste("Le pourcentage d'erreur pour la première ligne est", abs(erreur1/-0.8403231)*100, "%"))
 print(paste("Le pourcentage d'erreur pour la première ligne est", abs(erreur2/-0.2656904)*100, "%"))
 print(paste("Le pourcentage d'erreur pour la première ligne est", abs(erreur3/1.1060135)*100, "%"))
 ```
+
+Ici le pourcentage d'erreur est bien supérieure à ceux du modèle 2.
+
+# Conclusion
+
+En faisant une analyse pour les 3 modèles, on se rend compte que la prédiction est mauvaise : cela est dû à, en général, un choix de la base de données impertinent, mais aussi à ses valeurs aberrantes.
+
+Le modèle 1 à un $R^2$ de 11%, ce qui est très faible et rend inutile toute tentative de prédiction, avec la trop faible corrélation entre la variable d'intérêt et la seule variable explicative retenue par l'AIC.
+
+Le modèle 2 a cette fois-ci un $R^2$ de 65%, mais une valeur aberrante semble
+
+Le modèle 3 a un pourcentage d'erreur beaucoup trop important.
